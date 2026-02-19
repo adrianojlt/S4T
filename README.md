@@ -1,9 +1,8 @@
 # S4T (Shortcuts for Tabs)
 
-I use the Chrome Tab Groups feature all the time; it helps me keep my open tabs organized. When I need a specific tab, I simply search for it, and Chrome takes me there automatically.
-However, if I jump to a tab in a different group, I often end up with multiple groups expanded at once, which clutters the bar. It would be useful to have a quick way to collapse all groups that are not currently in focus.
+I use Chrome tab groups all the time. They help me keep my open tabs organized. When I need a specific tab, I simply search for it, and Chrome takes me there automatically. However, if I jump to a tab in a different group, I often end up with multiple groups expanded at once, which clutters the tab bar. It would be useful to have a quick way to collapse all groups that aren't currently in focus, or simply collapse them all.
 
-This extension solves that problem with keyboard shortcuts for collapsing tab groups and cycling through recently used tabs.
+This extension solves that problem adding keyboard shortcuts not only for collapsing tab groups but also to cycling through recently used tabs like the (Alt+Tab from Windows, Mac and Linux window managers).
 
 ## Shortcuts
 
