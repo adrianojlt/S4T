@@ -1,145 +1,170 @@
-var mru = [];
-var slowActive = 0;
-var quickActive = 0;
-var wPressed = false;
-var prevTimestamp = 0;
-var altPressed = false;
-var intSwitchCount = 0;
-var fastTimerValue = 200;
-var slowTimerValue = 1500;
-var lastIntSwitchIndex = 0;
-var slowSwitchOngoing = false;
-var fastSwitchOngoing = false;
+// ── Config constants ──────────────────────────────────────────────────────────
+const LOGGING_ON = true;
+const FAST_TIMER_MS = 200;
+const SLOW_TIMER_MS = 1500;
+const STAY_ALIVE_PORT = "tab-group-collapse-stayalive";
 
+// ── Logging utility ───────────────────────────────────────────────────────────
+function log(str) {
+    if (LOGGING_ON) console.log(str);
+}
 
-var timer;
-var slowSwitchForward = false;
-var initialized = false;
-var loggingOn = false;
+// ── MRU list + operations ─────────────────────────────────────────────────────
+const mru = [];
 
-
-
-var processCommand = function (command) {
-
-  Clog("Command recd:" + command);
-
-  var fastSwitch = true;
-
-  slowSwitchForward = false;
-
-  if (command == "alt_switch_fast") {
-    fastSwitch = true;
-  } else if (command == "alt_switch_slow_backward") {
-    fastSwitch = false;
-    slowSwitchForward = false;
-  } else if (command == "alt_switch_slow_forward") {
-    fastSwitch = false;
-    slowSwitchForward = true;
-  }
-
-  if (!slowSwitchOngoing && !fastSwitchOngoing) {
-    if (fastSwitch) {
-      fastSwitchOngoing = true;
-    } else {
-      slowSwitchOngoing = true;
+function addTabToMRUAtBack(tabId) {
+    if (mru.indexOf(tabId) === -1) {
+        mru.push(tabId);
     }
-    Clog("MRU::START_SWITCH");
-    intSwitchCount = 0;
-    doIntSwitch();
-  } else if (
-    (slowSwitchOngoing && !fastSwitch) ||
-    (fastSwitchOngoing && fastSwitch)
-  ) {
-    Clog("MRU::DO_INT_SWITCH");
-    doIntSwitch();
-  } else if (slowSwitchOngoing && fastSwitch) {
-    endSwitch();
-    fastSwitchOngoing = true;
-    Clog("MRU::START_SWITCH");
-    intSwitchCount = 0;
-    doIntSwitch();
-  } else if (fastSwitchOngoing && !fastSwitch) {
-    endSwitch();
-    slowSwitchOngoing = true;
-    Clog("MRU::START_SWITCH");
-    intSwitchCount = 0;
-    doIntSwitch();
-  }
+}
 
-  if (timer) {
-    if (fastSwitchOngoing || slowSwitchOngoing) {
-      clearTimeout(timer);
+function addTabToMRUAtFront(tabId) {
+    if (mru.indexOf(tabId) === -1) {
+        mru.splice(0, 0, tabId);
     }
-  }
-  if (fastSwitch) {
-    timer = setTimeout(function () {
-      endSwitch();
-    }, fastTimerValue);
-  } else {
-    timer = setTimeout(function () {
-      endSwitch();
-    }, slowTimerValue);
-  }
+}
+
+function putExistingTabToTop(tabId) {
+    const index = mru.indexOf(tabId);
+    if (index !== -1) {
+        mru.splice(index, 1);
+        mru.unshift(tabId);
+    }
+}
+
+function removeTabFromMRU(tabId) {
+    const index = mru.indexOf(tabId);
+    if (index !== -1) mru.splice(index, 1);
+}
+
+function removeItemAtIndexFromMRU(index) {
+    if (index < mru.length) mru.splice(index, 1);
+}
+
+// ── Switch session state + operations ────────────────────────────────────────
+const switchState = {
+    ongoing: false,
+    isFast: false,
+    forward: false,
+    index: 0,
+    lastIndex: 0,
+    timer: null,
 };
 
-chrome.commands.onCommand.addListener(async (command) => {
-  const [activeTab] = await chrome.tabs.query({
-    active: true,
-    currentWindow: true,
-  });
+function incrementIndex() {
+    switchState.index = (switchState.index + 1) % mru.length;
+}
 
-  if (!activeTab) return;
+function decrementIndex() {
+    switchState.index =
+        switchState.index === 0 ? mru.length - 1 : switchState.index - 1;
+}
 
-  const groups = await chrome.tabGroups.query({ windowId: activeTab.windowId });
+async function doIntSwitch() {
 
-  //if (MRU_COMMANDS.includes(command)) { processCommand(command); return; }
+    log("MRU:: in int switch, index: " + switchState.index + ", mru.length: " + mru.length);
 
-  switch (command) {
-    case "collapse_other_groups": {
-      for (const group of groups) {
-        if (group.id !== activeTab.groupId) {
-          try {
+    if (switchState.index >= mru.length || switchState.index < 0) return;
+
+    if (switchState.forward) {
+        decrementIndex();
+    } else {
+        incrementIndex();
+    }
+
+    const tabId = mru[switchState.index];
+
+    try {
+        const tab = await chrome.tabs.get(tabId);
+        await chrome.windows.update(tab.windowId, { focused: true });
+        await chrome.tabs.update(tabId, { active: true, highlighted: true });
+        switchState.lastIndex = switchState.index;
+    } catch {
+        log( "MRU:: in int switch, >>invalid tab found. index: " + switchState.index + ", mru.length: " + mru.length);
+        removeItemAtIndexFromMRU(switchState.index);
+        if (switchState.index >= mru.length) {
+            switchState.index = 0;
+        }
+        await doIntSwitch();
+    }
+}
+
+function endSwitch() {
+    log("MRU::END_SWITCH");
+    switchState.ongoing = false;
+    const tabId = mru[switchState.lastIndex];
+    putExistingTabToTop(tabId);
+}
+
+function resetTimer(isFast) {
+    if (switchState.timer) {
+        clearTimeout(switchState.timer);
+    }
+    switchState.timer = setTimeout(endSwitch, isFast ? FAST_TIMER_MS : SLOW_TIMER_MS);
+}
+
+function startSwitch(isFast, forward) {
+    switchState.ongoing = true;
+    switchState.isFast = isFast;
+    switchState.forward = forward;
+    switchState.index = 0;
+    log("MRU::START_SWITCH");
+    doIntSwitch();
+}
+
+function processCommand(command) {
+    log("Command recd:" + command);
+
+    const isFast = command === "alt_switch_fast";
+    const forward = command === "alt_switch_slow_forward";
+
+    if (!switchState.ongoing) {
+        startSwitch(isFast, forward);
+        resetTimer(isFast);
+        return;
+    }
+
+    if (switchState.isFast === isFast) {
+        log("MRU::DO_INT_SWITCH");
+        doIntSwitch();
+        resetTimer(isFast);
+        return;
+    }
+
+    // Mode changed — end old session, start fresh
+    endSwitch();
+    startSwitch(isFast, forward);
+    resetTimer(isFast);
+}
+
+// ── Tab-group commands ────────────────────────────────────────────────────────
+async function collapseOtherGroups(activeTab, groups) {
+    for (const group of groups) {
+        if (group.id === activeTab.groupId) continue;
+        try {
             await chrome.tabGroups.update(group.id, { collapsed: true });
-          } catch (e) {
+        } catch (e) {
             console.error("Failed to collapse group", group.id, e);
-          }
         }
-      }
-      await forceRepaint(activeTab.windowId);
-      break;
     }
+    await forceRepaint(activeTab.windowId);
+}
 
-    case "collapse_all_groups": {
-        const anyExpanded = groups.some((g) => !g.collapsed);
-        if (anyExpanded) {
-            // Collapse ALL groups (including active — Chrome won't visually
-            // collapse it, but setting the state lets the toggle work)
-            for (const group of groups) {
-                try {
-                    await chrome.tabGroups.update(group.id, { collapsed: true });
-                } catch (e) {
-                    console.error("Failed to collapse group", group.id, e);
-                }
-            }
-        } else {
-            // All collapsed -> expand the active tab's group
-            if (activeTab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE) {
-                await chrome.tabGroups.update(activeTab.groupId, {
-                    collapsed: false,
-                });
+async function collapseAllGroups(activeTab, groups) {
+    const anyExpanded = groups.some((g) => !g.collapsed);
+    if (anyExpanded) {
+        for (const group of groups) {
+            try {
+                await chrome.tabGroups.update(group.id, { collapsed: true });
+            } catch (e) {
+                console.error("Failed to collapse group", group.id, e);
             }
         }
-        await forceRepaint(activeTab.windowId);
-        break;
+    } else if (activeTab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE) {
+        await chrome.tabGroups.update(activeTab.groupId, { collapsed: false });
     }
-    case "alt_switch_fast":
-    case "alt_switch_slow_backward":
-    case "alt_switch_slow_forward": {
-        processCommand(command);
-        break;
-    }
-  }
-});
+    await forceRepaint(activeTab.windowId);
+}
 
 async function forceRepaint(windowId) {
     try {
@@ -152,228 +177,124 @@ async function forceRepaint(windowId) {
     }
 }
 
-chrome.action.onClicked.addListener(function (tab) {
-  Clog("Click recd");
-  processCommand("alt_switch_fast");
-});
+// ── Command dispatch ──────────────────────────────────────────────────────────
+const MRU_COMMANDS = new Set([
+    "alt_switch_fast",
+    "alt_switch_slow_backward",
+    "alt_switch_slow_forward",
+]);
 
-chrome.runtime.onStartup.addListener(function () {
-  Clog("on startup");
-  initialize();
-});
+const COMMANDS = {
+    collapse_other_groups: collapseOtherGroups,
+    collapse_all_groups: collapseAllGroups,
+};
 
-chrome.runtime.onInstalled.addListener(function () {
-  Clog("on startup");
-  initialize();
-});
+chrome.commands.onCommand.addListener(async (command) => {
 
-var doIntSwitch = function () {
-
-    Clog("MRU:: in int switch, intSwitchCount: " + intSwitchCount + ", mru.length: " + mru.length);
-
-    if (intSwitchCount < mru.length && intSwitchCount >= 0) {
-
-        var tabIdToMakeActive;
-
-        //check if tab is present, sometimes tabs go missing
-        var invalidTab = true;
-
-        var thisWindowId;
-
-        if (slowSwitchForward) {
-            decrementSwitchCounter();
-        } else {
-            incrementSwitchCounter();
-        }
-
-        tabIdToMakeActive = mru[intSwitchCount];
-
-        chrome.tabs.get(tabIdToMakeActive, function (tab) {
-            if (tab) {
-                invalidTab = false;
-                thisWindowId = tab.windowId;
-                chrome.windows.update(thisWindowId, { focused: true });
-                chrome.tabs.update(tabIdToMakeActive, { active: true, highlighted: true, });
-                lastIntSwitchIndex = intSwitchCount;
-            } else {
-                Clog("MRU:: in int switch, >>invalid tab found.intSwitchCount: " + intSwitchCount + ", mru.length: " + mru.length);
-                removeItemAtIndexFromMRU(intSwitchCount);
-                if (intSwitchCount >= mru.length) {
-                    intSwitchCount = 0;
-                }
-                doIntSwitch();
-            }
-        });
+    if (MRU_COMMANDS.has(command)) {
+        processCommand(command);
+        return;
     }
-};
 
-var endSwitch = function () {
-  Clog("MRU::END_SWITCH");
-  slowSwitchOngoing = false;
-  fastSwitchOngoing = false;
-  var tabId = mru[lastIntSwitchIndex];
-  putExistingTabToTop(tabId);
-  printMRUSimple();
-};
+    const handler = COMMANDS[command];
+    if (!handler) return;
 
-chrome.tabs.onActivated.addListener(function (activeInfo) {
-  if (!slowSwitchOngoing && !fastSwitchOngoing) {
-    var index = mru.indexOf(activeInfo.tabId);
+    const [activeTab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+    });
+    if (!activeTab) return;
 
-    //probably should not happen since tab created gets called first than activated for new tabs,
-    // but added as a backup behavior to avoid orphan tabs
-    if (index == -1) {
-      Clog("Unexpected scenario hit with tab(" + activeInfo.tabId + ").");
-      addTabToMRUAtFront(activeInfo.tabId);
+    const groups = await chrome.tabGroups.query({
+        windowId: activeTab.windowId,
+    });
+    await handler(activeTab, groups);
+});
+
+chrome.action.onClicked.addListener(() => {
+    log("Click recd");
+    processCommand("alt_switch_fast");
+});
+
+// ── Tab lifecycle listeners ───────────────────────────────────────────────────
+chrome.tabs.onActivated.addListener((activeInfo) => {
+
+    if (switchState.ongoing) return;
+
+    const index = mru.indexOf(activeInfo.tabId);
+
+    if (index === -1) {
+        log("Unexpected scenario hit with tab(" + activeInfo.tabId + ").");
+        addTabToMRUAtFront(activeInfo.tabId);
     } else {
-      putExistingTabToTop(activeInfo.tabId);
+        putExistingTabToTop(activeInfo.tabId);
     }
-  }
 });
 
-chrome.tabs.onCreated.addListener(function (tab) {
-    Clog("Tab create event fired with tab(" + tab.id + ")");
+chrome.tabs.onCreated.addListener((tab) => {
+    log("Tab create event fired with tab(" + tab.id + ")");
     addTabToMRUAtBack(tab.id);
 });
 
-chrome.tabs.onRemoved.addListener(function (tabId, removedInfo) {
-  Clog("Tab remove event fired from tab(" + tabId + ")");
-  removeTabFromMRU(tabId);
+chrome.tabs.onRemoved.addListener((tabId) => {
+    log("Tab remove event fired from tab(" + tabId + ")");
+    removeTabFromMRU(tabId);
 });
 
-var addTabToMRUAtBack = function (tabId) {
-  var index = mru.indexOf(tabId);
-  if (index == -1) {
-    //add to the end of mru
-    mru.splice(-1, 0, tabId);
-  }
-};
+// ── Initialization ────────────────────────────────────────────────────────────
+let initialized = false;
 
-var addTabToMRUAtFront = function (tabId) {
-  var index = mru.indexOf(tabId);
-  if (index == -1) {
-    //add to the front of mru
-    mru.splice(0, 0, tabId);
-  }
-};
-var putExistingTabToTop = function (tabId) {
-  var index = mru.indexOf(tabId);
-  if (index != -1) {
-    mru.splice(index, 1);
-    mru.unshift(tabId);
-  }
-};
+async function initialize() {
 
-var removeTabFromMRU = function (tabId) {
-    var index = mru.indexOf(tabId);
-    if (index != -1) { mru.splice(index, 1); }
-};
+    if (initialized) return;
+    initialized = true;
 
-var removeItemAtIndexFromMRU = function (index) {
-    if (index < mru.length) { mru.splice(index, 1); }
-};
-
-var incrementSwitchCounter = function () {
-    intSwitchCount = (intSwitchCount + 1) % mru.length;
-};
-
-var decrementSwitchCounter = function () {
-    intSwitchCount = (intSwitchCount === 0) ? mru.length - 1 : intSwitchCount - 1;
-};
-
-var initialize = function () {
-    if (!initialized) {
-        initialized = true;
-        chrome.windows.getAll({ populate: true }, function (windows) {
-            windows.forEach(function (window) {
-                window.tabs.forEach(function (tab) {
-                    mru.unshift(tab.id);
-                });
-            });
-            Clog("MRU after init: " + mru);
-        });
-    }
-};
-
-var printTabInfo = function (tabId) {
-  var info = "";
-  chrome.tabs.get(tabId, function (tab) {
-    info = "Tabid: " + tabId + " title: " + tab.title;
-  });
-  return info;
-};
-
-var str = "MRU status: \n";
-
-var printMRU = function () {
-    str = "MRU status: \n";
-    for (var i = 0; i < mru.length; i++) {
-        chrome.tabs.get(mru[i], function (tab) {});
-    }
-    Clog(str);
-};
-
-var printMRUSimple = function () {
-    Clog("mru: " + mru);
-};
-
-var generatePrintMRUString = function () {
-    chrome.tabs.query(function () {});
-    str += i + " :(" + tab.id + ")" + tab.title;
-    str += "\n";
-};
-
-// To fix the issue of service worker getting killed by Chrome after 30 seconds of inactivity
-const INTERNAL_STAYALIVE_PORT = "Whatever_Port_Name_You_Want";
-var alivePort = null;
-
-async function StayAlive() {
-  var lastCall = Date.now();
-
-  var wakeUp = setInterval(() => {
-    const now = Date.now();
-    const age = now - lastCall;
-
-    console.log(
-      `(DEBUG StayAlive) ----------------------- time elapsed: ${age}`,
-    );
-
-    if (alivePort == null) {
-      alivePort = chrome.runtime.connect({ name: INTERNAL_STAYALIVE_PORT });
-
-      alivePort.onDisconnect.addListener((p) => {
-        if (chrome.runtime.lastError) {
-          console.log(
-            `(DEBUG StayAlive) Disconnected due to an error: ${chrome.runtime.lastError.message}`,
-          );
-        } else {
-          console.log(`(DEBUG StayAlive): port disconnected`);
+    const windows = await chrome.windows.getAll({ populate: true });
+    for (const window of windows) {
+        for (const tab of window.tabs) {
+            mru.unshift(tab.id);
         }
-
-        alivePort = null;
-      });
     }
-
-    if (alivePort) {
-      alivePort.postMessage({ content: "ping" });
-
-      if (chrome.runtime.lastError) {
-        console.log(
-          `(DEBUG StayAlive): postMessage error: ${chrome.runtime.lastError.message}`,
-        );
-      } else {
-        console.log(
-          `(DEBUG StayAlive): "ping" sent through ${alivePort.name} port`,
-        );
-      }
-    }
-  }, 25000);
+    log("MRU after init: " + mru);
 }
 
-var Clog = function (str) {
-    if (loggingOn) { console.log(str); }
-};
+chrome.runtime.onStartup.addListener(() => {
+    log("on startup");
+    initialize();
+});
 
-StayAlive();
+chrome.runtime.onInstalled.addListener(() => {
+    log("on installed");
+    initialize();
+});
+
+// ── Keep-alive ────────────────────────────────────────────────────────────────
+let alivePort = null;
+
+// Accept the self-connection so Chrome doesn't throw "Receiving end does not exist"
+chrome.runtime.onConnect.addListener((port) => {
+    if (port.name === STAY_ALIVE_PORT) {
+        port.onMessage.addListener(() => {});
+    }
+});
+
+function stayAlive() {
+    setInterval(() => {
+        if (alivePort == null) {
+            alivePort = chrome.runtime.connect({ name: STAY_ALIVE_PORT });
+            alivePort.onDisconnect.addListener(() => {
+                alivePort = null;
+            });
+        }
+        if (alivePort) {
+            alivePort.postMessage({ content: "ping" });
+            // Read lastError to suppress "Unchecked runtime.lastError" when
+            // the port silently disconnects (e.g. during async window ops).
+            void chrome.runtime.lastError;
+        }
+    }, 25000);
+}
+
+stayAlive();
 
 initialize();

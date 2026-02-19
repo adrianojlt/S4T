@@ -1,31 +1,34 @@
 {
-  "manifest_version": 3,
-  "name": "Collapse Tab Groups",
-  "version": "1.0",
-  "description": "Collapse Tab Groups",
-  "permissions": ["tabGroups", "tabs"],
-  "icons": {
-    "16": "16.png",
-    "48": "48.png",
-    "128": "128.png"
-  },
-  "background": {
-    "service_worker": "background.js"
-  },
-  "commands": {
-    "collapse_other_groups": {
-      "suggested_key": {
-        "default": "Alt+Shift+Up"
-      },
-      "description": "Collapse all tab groups except the active one"
+    "manifest_version": 3,
+    "name": "S4T",
+    "version": "1.0",
+    "description": "Shortcut 4 Tabs",
+    "permissions": [
+        "tabGroups",
+        "tabs"
+    ],
+    "icons": {
+        "16": "16.png",
+        "48": "48.png",
+        "128": "128.png"
     },
-    "collapse_all_groups": {
-      "suggested_key": {
-        "default": "Alt+Shift+Down"
-      },
-      "description": "Collapse all tab groups, or if all groups are collapsed, expand the one with the active tab"
+    "background": {
+        "service_worker": "background.js"
     },
-    "alt_switch_fast": {
+    "commands": {
+        "collapse_other_groups": {
+            "suggested_key": {
+                "default": "Alt+Shift+Up"
+            },
+            "description": "Collapse all tab groups except the active one"
+        },
+        "collapse_all_groups": {
+            "suggested_key": {
+                "default": "Alt+Shift+Down"
+            },
+            "description": "Collapse all tab groups, or if all groups are collapsed, expand the one with the active tab"
+        },
+        "alt_switch_fast": {
             "suggested_key": {
                 "default": "Alt+W",
                 "mac": "Alt+W"
@@ -38,8 +41,8 @@
         "alt_switch_slow_forward": {
             "description": "Normal switch forward (Suggested: Alt+Shift+S)"
         }
-  },
-  "action": {
-    "default_title": "Collapse Tab Groups"
-  }
+    },
+    "action": {
+        "default_title": "Collapse Tab Groups"
+    }
 }
