@@ -24,7 +24,20 @@
         "default": "Alt+Shift+Down"
       },
       "description": "Collapse all tab groups, or if all groups are collapsed, expand the one with the active tab"
-    }
+    },
+    "alt_switch_fast": {
+            "suggested_key": {
+                "default": "Alt+W",
+                "mac": "Alt+W"
+            },
+            "description": "Quick switch - Use to switch quickly among last 2 to 4 tabs. (Suggested: Alt+W)"
+        },
+        "alt_switch_slow_backward": {
+            "description": "Normal switch backward (Suggested: Alt+S) "
+        },
+        "alt_switch_slow_forward": {
+            "description": "Normal switch forward (Suggested: Alt+Shift+S)"
+        }
   },
   "action": {
     "default_title": "Collapse Tab Groups"
