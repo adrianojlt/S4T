@@ -40,6 +40,33 @@
         },
         "alt_switch_slow_forward": {
             "description": "Normal switch forward (Suggested: Alt+Shift+S)"
+        },
+        "number_1": {
+            "description": "Expand 1st tab group if all collapsed"
+        },
+        "number_2": {
+            "description": "Expand 2nd tab group if all collapsed"
+        },
+        "number_3": {
+            "description": "Expand 3rd tab group if all collapsed"
+        },
+        "number_4": {
+            "description": "Expand 4th tab group if all collapsed"
+        },
+        "number_5": {
+            "description": "Expand 5th tab group if all collapsed"
+        },
+        "number_6": {
+            "description": "Expand 6th tab group if all collapsed"
+        },
+        "number_7": {
+            "description": "Expand 7th tab group if all collapsed"
+        },
+        "number_8": {
+            "description": "Expand 8th tab group if all collapsed"
+        },
+        "number_9": {
+            "description": "Expand 9th tab group if all collapsed"
         }
     },
     "action": {

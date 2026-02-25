@@ -177,6 +177,20 @@ async function forceRepaint(windowId) {
     }
 }
 
+// ── Number command handler ─────────────────────────────────────────────────
+async function handleNumberCommand(number) {
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!activeTab) return;
+
+    const groups = await chrome.tabGroups.query({ windowId: activeTab.windowId });
+    if (number > groups.length) return;
+
+    const targetGroup = groups[number - 1];
+    const newCollapsedState = !targetGroup.collapsed;
+    await chrome.tabGroups.update(targetGroup.id, { collapsed: newCollapsedState });
+    await forceRepaint(activeTab.windowId);
+}
+
 // ── Command dispatch ──────────────────────────────────────────────────────────
 const MRU_COMMANDS = new Set([
     "alt_switch_fast",
@@ -193,6 +207,12 @@ chrome.commands.onCommand.addListener(async (command) => {
 
     if (MRU_COMMANDS.has(command)) {
         processCommand(command);
+        return;
+    }
+
+    if (command.startsWith("number_")) {
+        const number = parseInt(command.replace("number_", ""), 10);
+        handleNumberCommand(number);
         return;
     }
 
