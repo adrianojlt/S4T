@@ -139,12 +139,26 @@ function processCommand(command) {
 
 // ── Tab-group commands ────────────────────────────────────────────────────────
 async function collapseOtherGroups(activeTab, groups) {
-    for (const group of groups) {
-        if (group.id === activeTab.groupId) continue;
-        try {
-            await chrome.tabGroups.update(group.id, { collapsed: true });
-        } catch (e) {
-            console.error("Failed to collapse group", group.id, e);
+    const activeGroup = groups.find((g) => g.id === activeTab.groupId);
+    const otherGroupsAllCollapsed = groups
+        .filter((g) => g.id !== activeTab.groupId)
+        .every((g) => g.collapsed);
+
+    if (otherGroupsAllCollapsed && activeGroup?.collapsed) {
+        // All collapsed → expand active
+        await chrome.tabGroups.update(activeTab.groupId, { collapsed: false });
+    } else if (otherGroupsAllCollapsed && !activeGroup?.collapsed) {
+        // Others collapsed, active expanded → collapse active too
+        await chrome.tabGroups.update(activeTab.groupId, { collapsed: true });
+    } else {
+        // Others expanded → collapse them
+        for (const group of groups) {
+            if (group.id === activeTab.groupId) continue;
+            try {
+                await chrome.tabGroups.update(group.id, { collapsed: true });
+            } catch (e) {
+                console.error("Failed to collapse group", group.id, e);
+            }
         }
     }
     await forceRepaint(activeTab.windowId);
@@ -152,16 +166,13 @@ async function collapseOtherGroups(activeTab, groups) {
 
 async function collapseAllGroups(activeTab, groups) {
     const anyExpanded = groups.some((g) => !g.collapsed);
-    if (anyExpanded) {
-        for (const group of groups) {
-            try {
-                await chrome.tabGroups.update(group.id, { collapsed: true });
-            } catch (e) {
-                console.error("Failed to collapse group", group.id, e);
-            }
+    const newState = anyExpanded ? true : false;
+    for (const group of groups) {
+        try {
+            await chrome.tabGroups.update(group.id, { collapsed: newState });
+        } catch (e) {
+            console.error("Failed to update group", group.id, e);
         }
-    } else if (activeTab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE) {
-        await chrome.tabGroups.update(activeTab.groupId, { collapsed: false });
     }
     await forceRepaint(activeTab.windowId);
 }

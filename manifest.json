@@ -26,7 +26,7 @@
             "suggested_key": {
                 "default": "Alt+Shift+Down"
             },
-            "description": "Collapse all tab groups, or if all groups are collapsed, expand the one with the active tab"
+            "description": "Collapse/Expand all tab groups"
         },
         "alt_switch_fast": {
             "suggested_key": {
