@@ -1,15 +1,15 @@
-// ── Config constants ──────────────────────────────────────────────────────────
+// ── Config constants 
 const LOGGING_ON = true;
 const FAST_TIMER_MS = 200;
 const SLOW_TIMER_MS = 1500;
 const STAY_ALIVE_PORT = "tab-group-collapse-stayalive";
 
-// ── Logging utility ───────────────────────────────────────────────────────────
+// ── Logging utility 
 function log(str) {
     if (LOGGING_ON) console.log(str);
 }
 
-// ── MRU list + operations ─────────────────────────────────────────────────────
+// ── MRU list + operations 
 const mru = [];
 
 function addTabToMRUAtBack(tabId) {
@@ -41,7 +41,7 @@ function removeItemAtIndexFromMRU(index) {
     if (index < mru.length) mru.splice(index, 1);
 }
 
-// ── Switch session state + operations ────────────────────────────────────────
+// ── Switch session state + operations 
 const switchState = {
     ongoing: false,
     isFast: false,
@@ -137,9 +137,23 @@ function processCommand(command) {
     resetTimer(isFast);
 }
 
-// ── Tab-group commands ────────────────────────────────────────────────────────
+// ── Tab-group commands 
 async function collapseOtherGroups(activeTab, groups) {
     const activeGroup = groups.find((g) => g.id === activeTab.groupId);
+
+    // Active tab has no group — collapse all groups
+    if (!activeGroup) {
+        for (const group of groups) {
+            try {
+                await chrome.tabGroups.update(group.id, { collapsed: true });
+            } catch (e) {
+                console.error("Failed to collapse group", group.id, e);
+            }
+        }
+        await forceRepaint(activeTab.windowId);
+        return;
+    }
+
     const otherGroupsAllCollapsed = groups
         .filter((g) => g.id !== activeTab.groupId)
         .every((g) => g.collapsed);
@@ -188,7 +202,7 @@ async function forceRepaint(windowId) {
     }
 }
 
-// ── Number command handler ─────────────────────────────────────────────────
+// ── Number command handler 
 async function handleNumberCommand(number) {
     const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!activeTab) return;
@@ -202,7 +216,7 @@ async function handleNumberCommand(number) {
     await forceRepaint(activeTab.windowId);
 }
 
-// ── Command dispatch ──────────────────────────────────────────────────────────
+// ── Command dispatch 
 const MRU_COMMANDS = new Set([
     "alt_switch_fast",
     "alt_switch_slow_backward",
@@ -247,7 +261,7 @@ chrome.action.onClicked.addListener(() => {
     processCommand("alt_switch_fast");
 });
 
-// ── Tab lifecycle listeners ───────────────────────────────────────────────────
+// ── Tab lifecycle listeners 
 chrome.tabs.onActivated.addListener((activeInfo) => {
 
     if (switchState.ongoing) return;
@@ -272,7 +286,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
     removeTabFromMRU(tabId);
 });
 
-// ── Initialization ────────────────────────────────────────────────────────────
+// ── Initialization 
 let initialized = false;
 
 async function initialize() {
@@ -299,7 +313,7 @@ chrome.runtime.onInstalled.addListener(() => {
     initialize();
 });
 
-// ── Keep-alive ────────────────────────────────────────────────────────────────
+// ── Keep-alive 
 let alivePort = null;
 
 // Accept the self-connection so Chrome doesn't throw "Receiving end does not exist"
