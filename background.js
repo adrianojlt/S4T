@@ -150,7 +150,6 @@ async function collapseOtherGroups(activeTab, groups) {
                 console.error("Failed to collapse group", group.id, e);
             }
         }
-        await forceRepaint(activeTab.windowId);
         return;
     }
 
@@ -175,7 +174,6 @@ async function collapseOtherGroups(activeTab, groups) {
             }
         }
     }
-    await forceRepaint(activeTab.windowId);
 }
 
 async function collapseAllGroups(activeTab, groups) {
@@ -187,18 +185,6 @@ async function collapseAllGroups(activeTab, groups) {
         } catch (e) {
             console.error("Failed to update group", group.id, e);
         }
-    }
-    await forceRepaint(activeTab.windowId);
-}
-
-async function forceRepaint(windowId) {
-    try {
-        const win = await chrome.windows.get(windowId);
-        await chrome.windows.update(windowId, { width: win.width + 1 });
-        await new Promise((r) => setTimeout(r, 100));
-        await chrome.windows.update(windowId, { width: win.width });
-    } catch (e) {
-        console.error("Repaint trick failed", e);
     }
 }
 
@@ -213,7 +199,6 @@ async function handleNumberCommand(number) {
     const targetGroup = groups[number - 1];
     const newCollapsedState = !targetGroup.collapsed;
     await chrome.tabGroups.update(targetGroup.id, { collapsed: newCollapsedState });
-    await forceRepaint(activeTab.windowId);
 }
 
 // ── Command dispatch 
