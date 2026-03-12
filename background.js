@@ -311,17 +311,19 @@ chrome.runtime.onConnect.addListener((port) => {
 
 function stayAlive() {
     setInterval(() => {
-        if (alivePort == null) {
-            alivePort = chrome.runtime.connect({ name: STAY_ALIVE_PORT });
-            alivePort.onDisconnect.addListener(() => {
-                alivePort = null;
-            });
-        }
-        if (alivePort) {
-            alivePort.postMessage({ content: "ping" });
-            // Read lastError to suppress "Unchecked runtime.lastError" when
-            // the port silently disconnects (e.g. during async window ops).
-            void chrome.runtime.lastError;
+        try {
+            if (alivePort == null) {
+                alivePort = chrome.runtime.connect({ name: STAY_ALIVE_PORT });
+                alivePort.onDisconnect.addListener(() => {
+                    void chrome.runtime.lastError; // must be read here to suppress "Unchecked" warning
+                    alivePort = null;
+                });
+            }
+            if (alivePort) {
+                alivePort.postMessage({ content: "ping" });
+            }
+        } catch (e) {
+            alivePort = null;
         }
     }, 25000);
 }
