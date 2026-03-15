@@ -69,10 +69,13 @@
             "description": "New tab to the right"
         },
         "newTabToTheLeft": {
-            "suggested_key": {
-                "default": "Alt+Shift+T"
-            },
             "description": "New tab to the left"
+        },
+        "closeRightTabsInGroup": {
+            "suggested_key": {
+                "default": "Alt+Shift+R"
+            },
+            "description": "Close tabs to the right in the current tab group"
         }
     },
     "action": {

@@ -222,6 +222,23 @@ async function collapseAllGroups(activeTab, groups) {
     }
 }
 
+async function closeRightTabsInGroup() {
+
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    if (!activeTab || activeTab.groupId < 0) {
+        return;
+    }
+
+    const tabsInGroup = await chrome.tabs.query({ groupId: activeTab.groupId });
+    const tabsToClose = tabsInGroup.filter(t => t.index > activeTab.index);
+    const tabIdsToClose = tabsToClose.map(t => t.id);
+
+    if (tabIdsToClose.length > 0) {
+        await chrome.tabs.remove(tabIdsToClose);
+    }
+}
+
 // ── Number command handler 
 async function handleNumberCommand(number) {
 
@@ -275,6 +292,11 @@ chrome.commands.onCommand.addListener(async (command) => {
             newAdjacentTab(tab, 'left');
         }
 
+        return;
+    }
+
+    if (command === 'closeRightTabsInGroup') {
+        await closeRightTabsInGroup();
         return;
     }
 
