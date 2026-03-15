@@ -12,7 +12,8 @@ This extension solves that problem adding keyboard shortcuts not only for collap
 | Shortcut | Description |
 | -------- | ----------- |
 | Alt+Shift+Up | Collapse all tab groups except the active one |
-| Alt+Shift+Down | Collapse all tab groups; if all are already collapsed, expand the active tab's group |
+| Alt+Shift+Down | Collapse/Expand all tab groups |
+| 1–9 *(assign in settings)* | Toggle the Nth tab group (by position) collapsed/expanded |
 | Alt+W *(assign in settings)* | Fast MRU tab switch — cycle through recent tabs quickly |
 | Alt+S *(assign in settings)* | Slow MRU tab switch — cycle forward through recent tabs |
 | Alt+Shift+S *(assign in settings)* | Slow MRU tab switch — cycle backward through recent tabs |
@@ -31,6 +32,3 @@ The extension is now active. You can verify it by checking for the icon in the t
 
 > **Note:** To assign or change keyboard shortcuts, go to `chrome://extensions/shortcuts`.
 
-## Debugging
-
-Set `LOGGING_ON = true` at the top of `background.js` to enable console logging of MRU operations and command events.
