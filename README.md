@@ -13,6 +13,8 @@ This extension solves that problem adding keyboard shortcuts not only for collap
 | -------- | ----------- |
 | Alt+Shift+Up | Collapse all tab groups except the active one |
 | Alt+Shift+Down | Collapse/Expand all tab groups |
+| Alt+T | Open a new tab to the right of the current tab |
+| Alt+H | Open a new tab to the left of the current tab |
 | 1–9 *(assign in settings)* | Toggle the Nth tab group (by position) collapsed/expanded |
 | Alt+W *(assign in settings)* | Fast MRU tab switch — cycle through recent tabs quickly |
 | Alt+S *(assign in settings)* | Slow MRU tab switch — cycle forward through recent tabs |

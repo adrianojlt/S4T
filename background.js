@@ -1,8 +1,23 @@
 // ── Config constants 
-const LOGGING_ON = true;
+const LOGGING_ON = false;
 const FAST_TIMER_MS = 200;
 const SLOW_TIMER_MS = 1500;
 const STAY_ALIVE_PORT = "tab-group-collapse-stayalive";
+
+// ── Adjacent tab function
+function newAdjacentTab(tab, position) {
+    const tabIndex = position === 'right' ? tab.index + 1 : tab.index;
+    chrome.tabs.create({
+        index: tabIndex
+    }, createdTab => {
+        if (tab.groupId >= 0) {
+            chrome.tabs.group({
+                groupId: tab.groupId,
+                tabIds: [createdTab.id]
+            });
+        }
+    });
+}
 
 // ── Logging utility 
 function log(str) {
@@ -34,11 +49,15 @@ function putExistingTabToTop(tabId) {
 
 function removeTabFromMRU(tabId) {
     const index = mru.indexOf(tabId);
-    if (index !== -1) mru.splice(index, 1);
+    if (index !== -1) {
+        mru.splice(index, 1);
+    }
 }
 
 function removeItemAtIndexFromMRU(index) {
-    if (index < mru.length) mru.splice(index, 1);
+    if (index < mru.length) { 
+        mru.splice(index, 1);
+    }
 }
 
 // ── Switch session state + operations 
@@ -56,15 +75,18 @@ function incrementIndex() {
 }
 
 function decrementIndex() {
-    switchState.index =
-        switchState.index === 0 ? mru.length - 1 : switchState.index - 1;
+    switchState.index = switchState.index === 0 
+        ? mru.length - 1 
+        : switchState.index - 1;
 }
 
 async function doIntSwitch() {
 
     log("MRU:: in int switch, index: " + switchState.index + ", mru.length: " + mru.length);
 
-    if (switchState.index >= mru.length || switchState.index < 0) return;
+    if (switchState.index >= mru.length || switchState.index < 0) {
+        return;
+    }
 
     if (switchState.forward) {
         decrementIndex();
@@ -113,6 +135,7 @@ function startSwitch(isFast, forward) {
 }
 
 function processCommand(command) {
+
     log("Command recd:" + command);
 
     const isFast = command === "alt_switch_fast";
@@ -139,10 +162,12 @@ function processCommand(command) {
 
 // ── Tab-group commands 
 async function collapseOtherGroups(activeTab, groups) {
+
     const activeGroup = groups.find((g) => g.id === activeTab.groupId);
 
     // Active tab has no group — collapse all groups
     if (!activeGroup) {
+
         for (const group of groups) {
             try {
                 await chrome.tabGroups.update(group.id, { collapsed: true });
@@ -150,6 +175,7 @@ async function collapseOtherGroups(activeTab, groups) {
                 console.error("Failed to collapse group", group.id, e);
             }
         }
+
         return;
     }
 
@@ -157,21 +183,29 @@ async function collapseOtherGroups(activeTab, groups) {
         .filter((g) => g.id !== activeTab.groupId)
         .every((g) => g.collapsed);
 
+    // All collapsed -> expand active
     if (otherGroupsAllCollapsed && activeGroup?.collapsed) {
-        // All collapsed → expand active
         await chrome.tabGroups.update(activeTab.groupId, { collapsed: false });
-    } else if (otherGroupsAllCollapsed && !activeGroup?.collapsed) {
-        // Others collapsed, active expanded → collapse active too
+        return;
+    } 
+
+    // Others collapsed, active expanded -> collapse active too
+    if (otherGroupsAllCollapsed && !activeGroup?.collapsed) {
         await chrome.tabGroups.update(activeTab.groupId, { collapsed: true });
-    } else {
-        // Others expanded → collapse them
-        for (const group of groups) {
-            if (group.id === activeTab.groupId) continue;
-            try {
-                await chrome.tabGroups.update(group.id, { collapsed: true });
-            } catch (e) {
-                console.error("Failed to collapse group", group.id, e);
-            }
+        return;
+    } 
+
+    // Others expanded -> collapse them
+    for (const group of groups) {
+
+        if (group.id === activeTab.groupId) { 
+            continue; 
+        }
+
+        try {
+            await chrome.tabGroups.update(group.id, { collapsed: true });
+        } catch (e) {
+            console.error("Failed to collapse group", group.id, e);
         }
     }
 }
@@ -190,11 +224,18 @@ async function collapseAllGroups(activeTab, groups) {
 
 // ── Number command handler 
 async function handleNumberCommand(number) {
+
     const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!activeTab) return;
+
+    if (!activeTab) {
+        return;
+    }
 
     const groups = await chrome.tabGroups.query({ windowId: activeTab.windowId });
-    if (number > groups.length) return;
+
+    if (number > groups.length) {
+        return;
+    }
 
     const targetGroup = groups[number - 1];
     const newCollapsedState = !targetGroup.collapsed;
@@ -215,6 +256,28 @@ const COMMANDS = {
 
 chrome.commands.onCommand.addListener(async (command) => {
 
+    if (command === 'newTabToTheRight') {
+
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+        if (tab) {
+            newAdjacentTab(tab, 'right');
+        }
+
+        return;
+    }
+
+    if (command === 'newTabToTheLeft') {
+
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+        if (tab) {
+            newAdjacentTab(tab, 'left');
+        }
+
+        return;
+    }
+
     if (MRU_COMMANDS.has(command)) {
         processCommand(command);
         return;
@@ -227,17 +290,24 @@ chrome.commands.onCommand.addListener(async (command) => {
     }
 
     const handler = COMMANDS[command];
-    if (!handler) return;
+
+    if (!handler) {
+        return;
+    }
 
     const [activeTab] = await chrome.tabs.query({
         active: true,
         currentWindow: true,
     });
-    if (!activeTab) return;
+
+    if (!activeTab) { 
+        return;
+    }
 
     const groups = await chrome.tabGroups.query({
         windowId: activeTab.windowId,
     });
+
     await handler(activeTab, groups);
 });
 
@@ -249,7 +319,9 @@ chrome.action.onClicked.addListener(() => {
 // ── Tab lifecycle listeners 
 chrome.tabs.onActivated.addListener((activeInfo) => {
 
-    if (switchState.ongoing) return;
+    if (switchState.ongoing) {
+        return;
+    }
 
     const index = mru.indexOf(activeInfo.tabId);
 
@@ -271,12 +343,14 @@ chrome.tabs.onRemoved.addListener((tabId) => {
     removeTabFromMRU(tabId);
 });
 
-// ── Initialization 
 let initialized = false;
 
 async function initialize() {
 
-    if (initialized) return;
+    if (initialized) { 
+        return; 
+    }
+
     initialized = true;
 
     const windows = await chrome.windows.getAll({ populate: true });
@@ -285,6 +359,7 @@ async function initialize() {
             mru.unshift(tab.id);
         }
     }
+
     log("MRU after init: " + mru);
 }
 
