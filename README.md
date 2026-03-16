@@ -18,8 +18,6 @@ This extension solves that problem adding keyboard shortcuts not only for collap
 | Alt+Shift+R | Close tabs to the right in the current tab group |
 | 1–9 *(assign in settings)* | Toggle the Nth tab group (by position) collapsed/expanded |
 | Alt+W *(assign in settings)* | Fast MRU tab switch — cycle through recent tabs quickly |
-| Alt+S *(assign in settings)* | Slow MRU tab switch — cycle forward through recent tabs |
-| Alt+Shift+S *(assign in settings)* | Slow MRU tab switch — cycle backward through recent tabs |
 
 MRU shortcuts cycle through tabs in most-recently-used order. Releasing the shortcut (after the timeout) finalises the selection and moves the chosen tab to the top of the MRU list.
 

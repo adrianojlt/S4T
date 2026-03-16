@@ -1,6 +1,7 @@
 {
     "manifest_version": 3,
-    "name": "S4T",
+    "name": "S4T - Shortcuts for Tabs",
+    "short_name": "S4T",
     "version": "1.0",
     "description": "Shortcut 4 Tabs",
     "permissions": [
@@ -9,6 +10,7 @@
     ],
     "icons": {
         "16": "16.png",
+        "32": "32.png",
         "48": "48.png",
         "128": "128.png"
     },
