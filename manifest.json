@@ -5,8 +5,7 @@
     "version": "1.0",
     "description": "Shortcut 4 Tabs",
     "permissions": [
-        "tabGroups",
-        "tabs"
+        "tabGroups"
     ],
     "icons": {
         "16": "16.png",

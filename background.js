@@ -1,10 +1,10 @@
-// ── Config constants 
+// Config constants 
 const LOGGING_ON = false;
 const FAST_TIMER_MS = 200;
 const SLOW_TIMER_MS = 1500;
 const STAY_ALIVE_PORT = "tab-group-collapse-stayalive";
 
-// ── Adjacent tab function
+// Adjacent tab function
 function newAdjacentTab(tab, position) {
     const tabIndex = position === 'right' ? tab.index + 1 : tab.index;
     chrome.tabs.create({
@@ -19,12 +19,12 @@ function newAdjacentTab(tab, position) {
     });
 }
 
-// ── Logging utility 
+// Logging utility 
 function log(str) {
     if (LOGGING_ON) console.log(str);
 }
 
-// ── MRU list + operations 
+// MRU list + operations 
 const mru = [];
 
 function addTabToMRUAtBack(tabId) {
@@ -60,7 +60,7 @@ function removeItemAtIndexFromMRU(index) {
     }
 }
 
-// ── Switch session state + operations 
+// Switch session state + operations 
 const switchState = {
     ongoing: false,
     isFast: false,
@@ -160,7 +160,7 @@ function processCommand(command) {
     resetTimer(isFast);
 }
 
-// ── Tab-group commands 
+// Tab-group commands 
 async function collapseOtherGroups(activeTab, groups) {
 
     const activeGroup = groups.find((g) => g.id === activeTab.groupId);
@@ -183,19 +183,19 @@ async function collapseOtherGroups(activeTab, groups) {
         .filter((g) => g.id !== activeTab.groupId)
         .every((g) => g.collapsed);
 
-    // All collapsed -> expand active
+    // All collapsed > expand active
     if (otherGroupsAllCollapsed && activeGroup?.collapsed) {
         await chrome.tabGroups.update(activeTab.groupId, { collapsed: false });
         return;
     } 
 
-    // Others collapsed, active expanded -> collapse active too
+    // Others collapsed, active expanded > collapse active too
     if (otherGroupsAllCollapsed && !activeGroup?.collapsed) {
         await chrome.tabGroups.update(activeTab.groupId, { collapsed: true });
         return;
     } 
 
-    // Others expanded -> collapse them
+    // Others expanded > collapse them
     for (const group of groups) {
 
         if (group.id === activeTab.groupId) { 
@@ -239,7 +239,7 @@ async function closeRightTabsInGroup() {
     }
 }
 
-// ── Number command handler 
+// Number command handler 
 async function handleNumberCommand(number) {
 
     const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -259,7 +259,7 @@ async function handleNumberCommand(number) {
     await chrome.tabGroups.update(targetGroup.id, { collapsed: newCollapsedState });
 }
 
-// ── Command dispatch 
+// Command dispatch 
 const MRU_COMMANDS = new Set([
     "alt_switch_fast",
     "alt_switch_slow_backward",
@@ -338,11 +338,27 @@ chrome.action.onClicked.addListener(() => {
     processCommand("alt_switch_fast");
 });
 
-// ── Tab lifecycle listeners 
-chrome.tabs.onActivated.addListener((activeInfo) => {
+// Tab lifecycle listeners 
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
 
     if (switchState.ongoing) {
         return;
+    }
+
+    // expand collapsed group automatically ...
+    try {
+        const tab = await chrome.tabs.get(activeInfo.tabId);
+        
+        if (tab.groupId >= 0) {
+            const group = await chrome.tabGroups.get(tab.groupId);
+            
+            if (group.collapsed) {
+                await chrome.tabGroups.update(tab.groupId, { collapsed: false });
+            }
+        }
+    } catch (e) {
+        // Tab closed?, ignorar erro!
+        console.error("Error expanding group:", e);
     }
 
     const index = mru.indexOf(activeInfo.tabId);
@@ -395,7 +411,7 @@ chrome.runtime.onInstalled.addListener(() => {
     initialize();
 });
 
-// ── Keep-alive 
+// Keep-alive 
 let alivePort = null;
 
 // Accept the self-connection so Chrome doesn't throw "Receiving end does not exist"
