@@ -17,7 +17,10 @@ This extension solves that problem adding keyboard shortcuts not only for collap
 | Alt+H | Open a new tab to the left of the current tab |
 | Alt+Shift+R | Close tabs to the right in the current tab group |
 | 1–9 *(assign in settings)* | Toggle the Nth tab group (by position) collapsed/expanded |
+| Alt+1 ... Alt+9 *(assign in settings)* | Go to the Nth tab of the current tab group (9 = last tab of the group; falls back to the whole window when the active tab is ungrouped), a rebindable replacement for Chrome's fixed Ctrl+1 ... Ctrl+9 |
 | Alt+W *(assign in settings)* | Fast MRU (Most Recent Usage) tab switch — cycle through recent tabs quickly |
+
+Expanding a tab group (by shortcut or by clicking its header) activates that group's first tab, so it becomes the current group for the Alt+1 ... Alt+9 shortcuts. Collapsing never moves the focus, and expanding every group at once (Collapse/expand all) does not either.
 
 MRU shortcuts cycle through tabs in most-recently-used order. Releasing the shortcut (after the timeout) finalizes the selection and moves the chosen tab to the top of the MRU list.
 

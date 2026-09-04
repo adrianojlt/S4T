@@ -63,6 +63,33 @@
         "number_9": {
             "description": "Expand 9th tab group if all collapsed"
         },
+        "select_tab_1": {
+            "description": "Go to tab 1 of the current group (alternative to Ctrl+1)"
+        },
+        "select_tab_2": {
+            "description": "Go to tab 2 of the current group (alternative to Ctrl+2)"
+        },
+        "select_tab_3": {
+            "description": "Go to tab 3 of the current group (alternative to Ctrl+3)"
+        },
+        "select_tab_4": {
+            "description": "Go to tab 4 of the current group (alternative to Ctrl+4)"
+        },
+        "select_tab_5": {
+            "description": "Go to tab 5 of the current group (alternative to Ctrl+5)"
+        },
+        "select_tab_6": {
+            "description": "Go to tab 6 of the current group (alternative to Ctrl+6)"
+        },
+        "select_tab_7": {
+            "description": "Go to tab 7 of the current group (alternative to Ctrl+7)"
+        },
+        "select_tab_8": {
+            "description": "Go to tab 8 of the current group (alternative to Ctrl+8)"
+        },
+        "select_tab_9": {
+            "description": "Go to the last tab of the current group (alternative to Ctrl+9)"
+        },
         "newTabToTheRight": {
             "suggested_key": {
                 "default": "Alt+T"

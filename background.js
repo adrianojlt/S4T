@@ -160,7 +160,13 @@ function processCommand(command) {
     resetTimer(isFast);
 }
 
-// Tab-group commands 
+// Group expand tracking (an expanded group becomes the active one)
+const groupCollapsedState = new Map();
+
+// Groups expanded in bulk by us — expanding them all must not move the focus
+const ignoreExpandOnce = new Set();
+
+// Tab-group commands
 async function collapseOtherGroups(activeTab, groups) {
 
     const activeGroup = groups.find((g) => g.id === activeTab.groupId);
@@ -215,6 +221,9 @@ async function collapseAllGroups(activeTab, groups) {
     const newState = anyExpanded ? true : false;
     for (const group of groups) {
         try {
+            if (!newState) {
+                ignoreExpandOnce.add(group.id);
+            }
             await chrome.tabGroups.update(group.id, { collapsed: newState });
         } catch (e) {
             console.error("Failed to update group", group.id, e);
@@ -257,6 +266,34 @@ async function handleNumberCommand(number) {
     const targetGroup = groups[number - 1];
     const newCollapsedState = !targetGroup.collapsed;
     await chrome.tabGroups.update(targetGroup.id, { collapsed: newCollapsedState });
+}
+
+// Select tab by position within the active tab's group (rebindable alternative to Chrome's Ctrl+1..Ctrl+9)
+async function selectTabByPosition(number) {
+
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    if (!activeTab) {
+        return;
+    }
+
+    // Ungrouped active tab falls back to positions in the whole window
+    const tabs = activeTab.groupId >= 0
+        ? await chrome.tabs.query({ groupId: activeTab.groupId })
+        : await chrome.tabs.query({ currentWindow: true });
+
+    if (tabs.length === 0) {
+        return;
+    }
+
+    // Like Chrome, 9 always means the last tab
+    const targetTab = number === 9 ? tabs[tabs.length - 1] : tabs[number - 1];
+
+    if (!targetTab) {
+        return;
+    }
+
+    await chrome.tabs.update(targetTab.id, { active: true });
 }
 
 // Command dispatch 
@@ -302,6 +339,12 @@ chrome.commands.onCommand.addListener(async (command) => {
 
     if (MRU_COMMANDS.has(command)) {
         processCommand(command);
+        return;
+    }
+
+    if (command.startsWith("select_tab_")) {
+        const number = parseInt(command.replace("select_tab_", ""), 10);
+        await selectTabByPosition(number);
         return;
     }
 
@@ -371,6 +414,35 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     }
 });
 
+// Expanding a group (mouse or shortcut) makes it the active group
+chrome.tabGroups.onUpdated.addListener(async (group) => {
+
+    const wasCollapsed = groupCollapsedState.get(group.id);
+    groupCollapsedState.set(group.id, group.collapsed);
+
+    // Only react to collapsed > expanded, not to title/color changes
+    if (group.collapsed || wasCollapsed === false) {
+        return;
+    }
+
+    if (ignoreExpandOnce.delete(group.id)) {
+        return;
+    }
+
+    const [activeTab] = await chrome.tabs.query({ active: true, windowId: group.windowId });
+
+    // Group already holds the active tab (e.g. auto-expand when jumping into it)
+    if (activeTab && activeTab.groupId === group.id) {
+        return;
+    }
+
+    const [firstTab] = await chrome.tabs.query({ groupId: group.id });
+
+    if (firstTab) {
+        await chrome.tabs.update(firstTab.id, { active: true });
+    }
+});
+
 chrome.tabs.onCreated.addListener((tab) => {
     log("Tab create event fired with tab(" + tab.id + ")");
     addTabToMRUAtBack(tab.id);
@@ -396,6 +468,11 @@ async function initialize() {
         for (const tab of window.tabs) {
             mru.unshift(tab.id);
         }
+    }
+
+    const groups = await chrome.tabGroups.query({});
+    for (const group of groups) {
+        groupCollapsedState.set(group.id, group.collapsed);
     }
 
     log("MRU after init: " + mru);
