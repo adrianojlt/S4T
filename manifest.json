@@ -25,10 +25,10 @@
         },
         "alt_switch_fast": {
             "suggested_key": {
-                "default": "Alt+W",
-                "mac": "Alt+W"
+                "default": "Alt+A",
+                "mac": "Alt+A"
             },
-            "description": "Quick switch - Use to switch quickly among last 2 to 4 tabs. (Suggested: Alt+W)"
+            "description": "Quick switch - Use to switch quickly among last 2 to 4 tabs. (Suggested: Alt+A)"
         },
         "alt_switch_slow_backward": {
             "description": "Normal switch backward (Suggested: Alt+S) "
@@ -100,10 +100,19 @@
             "description": "New tab to the left"
         },
         "closeRightTabsInGroup": {
+            "description": "Close tabs to the right in the current tab group (Suggested: Alt+Shift+R)"
+        },
+        "nextTab": {
             "suggested_key": {
-                "default": "Alt+Shift+R"
+                "default": "Alt+W"
             },
-            "description": "Close tabs to the right in the current tab group"
+            "description": "Go to the next tab in the window (alternative to Ctrl+Tab)"
+        },
+        "previousTab": {
+            "suggested_key": {
+                "default": "Alt+Q"
+            },
+            "description": "Go to the previous tab in the window (alternative to Ctrl+Shift+Tab)"
         }
     },
     "action": {

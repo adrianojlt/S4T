@@ -296,7 +296,26 @@ async function selectTabByPosition(number) {
     await chrome.tabs.update(targetTab.id, { active: true });
 }
 
-// Command dispatch 
+// Cycle through the window's tabs with wrap-around (alternative to Ctrl+Tab / Ctrl+Shift+Tab)
+async function cycleTab(offset) {
+
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+
+    if (tabs.length === 0) {
+        return;
+    }
+
+    const currentIndex = tabs.findIndex((t) => t.active);
+
+    if (currentIndex === -1) {
+        return;
+    }
+
+    const targetIndex = (currentIndex + offset + tabs.length) % tabs.length;
+    await chrome.tabs.update(tabs[targetIndex].id, { active: true });
+}
+
+// Command dispatch
 const MRU_COMMANDS = new Set([
     "alt_switch_fast",
     "alt_switch_slow_backward",
@@ -334,6 +353,16 @@ chrome.commands.onCommand.addListener(async (command) => {
 
     if (command === 'closeRightTabsInGroup') {
         await closeRightTabsInGroup();
+        return;
+    }
+
+    if (command === 'nextTab') {
+        await cycleTab(1);
+        return;
+    }
+
+    if (command === 'previousTab') {
+        await cycleTab(-1);
         return;
     }
 
